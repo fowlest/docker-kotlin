@@ -133,8 +133,9 @@ WORKDIR /workspace
 
 # Copy only Gradle configuration files first (these change rarely)
 # This allows Docker to cache the dependency download layer
-COPY --chown=android:android ./project/build.gradle.kts ./project/settings.gradle.kts /workspace/
-COPY --chown=android:android ./project/gradle* /workspace/
+COPY --chown=android:android ./project/build.gradle.kts ./project/settings.gradle.kts ./project/gradle.properties /workspace/
+COPY --chown=android:android ./project/gradle /workspace/gradle/
+COPY --chown=android:android ./project/gradlew* /workspace/
 
 # Check if gradlew exists, generate if needed, then download dependencies
 RUN if [ -f "gradlew" ]; then \
