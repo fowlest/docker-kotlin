@@ -133,7 +133,7 @@ WORKDIR /workspace
 
 # Copy only Gradle configuration files first (these change rarely)
 # This allows Docker to cache the dependency download layer
-COPY --chown=android:android ./project/build.gradle.kts ./project/settings.gradle.kts ./project/gradle.properties /workspace/
+COPY --chown=android:android ./project/build.gradle.kts ./project/settings.gradle.kts ./project/gradle.properties ./project/*.gradle.kts /workspace/
 COPY --chown=android:android ./project/gradle /workspace/gradle/
 COPY --chown=android:android ./project/gradlew* /workspace/
 
@@ -157,8 +157,9 @@ COPY --chown=android:android ./project/app /workspace/app/
 # Now build the project (dependencies are already cached)
 RUN echo "==> Building Debug..." && \
     ./gradlew assembleDebug --no-daemon --stacktrace && \
-    echo "==> Compiling tests to cache test dependencies..." && \
+    echo "==> Running tests to cache dependencies..." && \
     ./gradlew compileDebugUnitTestKotlin compileDebugAndroidTestKotlin --no-daemon --stacktrace && \
+    ./gradlew :app:testDebugUnitTest --no-daemon --continue || true && \
     echo "==> ✅ Build complete! All dependencies cached."
 
 # Copy any remaining files we might have missed
