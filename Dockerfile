@@ -170,6 +170,7 @@ FROM project-builder AS final
 # Copy run_tests.sh into the image so it can be executed from within the container
 COPY --chown=android:android run_tests.sh /workspace/run_tests.sh
 RUN chmod +x /workspace/run_tests.sh
+RUN if [ -f /workspace/gradlew ]; then chmod +x /workspace/gradlew; fi
 
 # Make sure we're the android user and in the right directory
 USER android
