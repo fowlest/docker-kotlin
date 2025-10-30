@@ -131,8 +131,7 @@ RUN yes | sdkmanager --sdk_root="${ANDROID_SDK_ROOT}" --licenses || true
 
 WORKDIR /workspace
 
-# Copy only Gradle configuration files first (these change rarely)
-# This allows Docker to cache the dependency download layer
+# Copy Gradle configuration files - this allows Docker to cache the dependency download layer
 COPY --chown=android:android ./project/build.gradle.kts ./project/settings.gradle.kts ./project/gradle.properties ./project/*.gradle.kts /workspace/
 COPY --chown=android:android ./project/gradle /workspace/gradle/
 COPY --chown=android:android ./project/gradlew* /workspace/
@@ -154,11 +153,27 @@ RUN if [ -f "gradlew" ]; then \
 # Copy the rest of the app (source code)
 COPY --chown=android:android ./project/app /workspace/app/
 
-# Now build the project (dependencies are already cached)
+# === Copy tests before building, so Gradle knows about them ===
+COPY --chown=android:android ./tests /workspace/tests/
+
+# Overlay the tests into the project structure
+RUN if [ -d /workspace/tests/app/src/test ]; then \
+      mkdir -p /workspace/app/src/test && \
+      cp -R /workspace/tests/app/src/test/* /workspace/app/src/test/ 2>/dev/null || true; \
+    fi && \
+    if [ -d /workspace/tests/app/src/androidTest ]; then \
+      mkdir -p /workspace/app/src/androidTest && \
+      cp -R /workspace/tests/app/src/androidTest/* /workspace/app/src/androidTest/ 2>/dev/null || true; \
+    fi
+
+# Now build the project with tests (downloads all dependencies including test deps)
 RUN echo "==> Building Debug..." && \
     ./gradlew assembleDebug --no-daemon --stacktrace && \
-    echo "==> Running tests to cache dependencies..." && \
+    echo "==> Compiling tests (including overlaid tests)..." && \
     ./gradlew compileDebugUnitTestKotlin compileDebugAndroidTestKotlin --no-daemon --stacktrace && \
+    echo "==> Downloading test runtime dependencies..." && \
+    ./gradlew :app:testDebugUnitTestRuntimeClasspath --no-daemon || true && \
+    echo "==> Running tests once to cache everything..." && \
     ./gradlew :app:testDebugUnitTest --no-daemon --continue || true && \
     echo "==> ✅ Build complete! All dependencies cached."
 
