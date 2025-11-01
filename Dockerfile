@@ -3,14 +3,14 @@
 ## Android SDK + Gradle + pinned toolchain, optimized for caching
 ##
 
-# --- Pin the base JDK (use a digest in CI for full hermeticity) ----------------
+# --- Pin the base JDK -----------------------------------
 ARG BASE_IMAGE=eclipse-temurin@sha256:00545bed5b57e0799fd32cdaea73ba171e826dce68c522ad0ef6888a7818a412
 FROM ${BASE_IMAGE} AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 
-# Fast apt with BuildKit caches; keep this small and stable so it rarely invalidates.
+# Fast apt with BuildKit caches
 RUN --mount=type=cache,target=/var/cache/apt \
     --mount=type=cache,target=/var/lib/apt/lists \
     apt-get update && \
@@ -131,7 +131,7 @@ RUN yes | sdkmanager --sdk_root="${ANDROID_SDK_ROOT}" --licenses || true
 
 WORKDIR /workspace
 
-# Copy Gradle configuration files - this allows Docker to cache the dependency download layer
+# Copy only Gradle configuration files first - this allows Docker to cache the dependency download layer
 COPY --chown=android:android ./project/build.gradle.kts ./project/settings.gradle.kts ./project/gradle.properties ./project/*.gradle.kts /workspace/
 COPY --chown=android:android ./project/gradle /workspace/gradle/
 COPY --chown=android:android ./project/gradlew* /workspace/
@@ -175,6 +175,8 @@ RUN echo "==> Building Debug..." && \
     ./gradlew :app:testDebugUnitTestRuntimeClasspath --no-daemon || true && \
     echo "==> Running tests once to cache everything..." && \
     ./gradlew :app:testDebugUnitTest --no-daemon --continue || true && \
+    echo "==> Building test APKs..." && \
+    ./gradlew assembleDebugAndroidTest --no-daemon --stacktrace && \
     echo "==> ✅ Build complete! All dependencies cached."
 
 # Copy any remaining files we might have missed
